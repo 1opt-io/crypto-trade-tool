@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="author" content="Jingyan Peng">
+        <meta name="description" content="CryptoQuantTool">
+        <title>CryptoQuantTool-ETH/USDT</title>
+        <link href="#" rel="shortcut icon" />
+        <link rel="stylesheet" href="style.css" tyep="text/css">
+    </head>
+    
+    <body class="body">
+        <H1 class="title">ETH/USDT</H1>
+        
+        <!-- Form -->
+        <div class="container">
+        <form class="configForm" onsubmit="return false;">
+            <label for="priceRange">Price Range:</label>
+            <input type="text" id="priceRangeLow" name="priceRangeLow" placeholder="Low Price">-
+            <input type="text" id="priceRangeHigh" name="priceRangeHigh" placeholder="High Price">
+            <br>
+            <label for="grids">Number of Grids:</label>
+            <input type="text" id="numberOfGrids" name="numberOfGrids" placeholder="Number of Grids">
+            <br>
+            <label for="margin">Margin:</label>
+            <input type="text" id="margin" name="margin" placeholder="Margin">
+            <br>
+            <input type="submit" value="Submit" onclick="submitForm()">
+        </form>
+        </div>
+
+        <div class="container">
+        <button class="orderHistory" onclick="getOrderHistory()">Order History</button>
+        </div>
+
+        <!-- Response display area -->
+        <p id="response">======================</p>
+        
+        <script src="control.js"></script>  
+    </body>
+
+</html>
+
