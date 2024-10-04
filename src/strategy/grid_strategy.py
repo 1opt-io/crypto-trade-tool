@@ -38,6 +38,8 @@ class GridStrategy(AbstractStrategy):
 
         self.buy_orders = []
         self.sell_orders = []
+        self.matched_profit = 0
+        self.matched_orders = []
         print("Grid Strategy initialization completed!")
 
     def set_grid_parameters(self, config):
@@ -111,35 +113,49 @@ class GridStrategy(AbstractStrategy):
             self.iterate_grids_and_place_limit_order(current_price)
         # TODO: 下单未成交，需识别后再次确认成交条件再下单
 
-    def compare_history_prices_and_trade(self, curr_price, date_time):
-        if curr_price is None:
-            print("Failed to retrieve current price.")
-            return
+    def compare_history_prices_and_trade(self, curr_price: float, date_time: str):
         if curr_price <= self.min_price or curr_price >= self.max_price:  # check within boundaries
             print("Price reached the boundary, stopping Auto-trading...")
             return
 
         # Trading logic/conditions: determine placing buy or sell order based on previous price change
-        if self.previous_price > curr_price and self.curr_eth_position < self.max_position:
+        if self.previous_price > curr_price:
             # self.trade_type = 'buy'
             for i in range(self.previous_price_idx - 1, -1, -1):
-                if self.grid_levels[i] >= curr_price:
-                    self.buy_orders.append({'side': 'buy', 'amount': self.fixed_trade_amount, 'price': curr_price, 'date': date_time})
+                if self.grid_levels[i] >= curr_price and self.curr_eth_position < self.max_position:
+                    self.buy_orders.append({'side': 'buy', 'amount': self.fixed_trade_amount, 'price': curr_price,
+                                            'date': date_time})
+                    self.compute_matched_profit()
                     self.curr_eth_position += self.fixed_trade_amount
                 else:
                     self.previous_price = curr_price  # Update prev_price and index
                     self.previous_price_idx = i + 1
                     break
 
-        elif curr_price > self.previous_price and self.curr_eth_position > -self.max_position:
+        elif curr_price > self.previous_price:
             # self.trade_type = 'sell'
             for i in range(self.previous_price_idx + 1, len(self.grid_levels)):
-                if self.grid_levels[i] <= curr_price:
-                    self.sell_orders.append({'side': 'sell', 'amount': self.fixed_trade_amount, 'price': curr_price, 'date': date_time})
+                if self.grid_levels[i] <= curr_price and self.curr_eth_position > -self.max_position:
+                    self.sell_orders.append({'side': 'sell', 'amount': self.fixed_trade_amount, 'price': curr_price,
+                                             'date': date_time})
+                    self.compute_matched_profit()
                     self.curr_eth_position -= self.fixed_trade_amount
                 else:
                     self.previous_price = curr_price
                     self.previous_price_idx = i - 1
+                    break
+
+    def compute_matched_profit(self):
+        # iterate orders from right to left, compare prices and compute matched profit
+        for buy_order in reversed(self.buy_orders):
+            for sell_order in reversed(self.sell_orders):
+                if sell_order['price'] > buy_order['price']:  # simple matched logic
+                    self.matched_profit += (sell_order['price'] - buy_order['price']) * self.fixed_trade_amount
+                    self.matched_orders.append(buy_order)
+                    self.matched_orders.append(sell_order)
+
+                    self.buy_orders.remove(buy_order)
+                    self.sell_orders.remove(sell_order)
                     break
 
     def execute(self, time_interval):
