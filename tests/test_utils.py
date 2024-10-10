@@ -1,4 +1,4 @@
-from src.util.utils import get_path, read_file, check_file_info
+from src.utils.simple_io import get_path, read_file, check_file_info
 import unittest
 
 

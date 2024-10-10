@@ -2,7 +2,7 @@ import os
 import ccxt
 
 from typing import Literal
-from src.util.utils import get_path, read_file
+from src.utils.simple_io import get_path, read_file
 from src.service.abstract_exchange import AbstractExchange
 
 

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
-from src.util.utils import get_path, read_file, write_file
+from src.utils.simple_io import get_path, read_file, write_file
 
 
 class ConfigRoutes:

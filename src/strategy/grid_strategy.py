@@ -2,9 +2,14 @@ import bisect
 import json
 import time
 
+import math
+
 from src.service.exchange import Exchange
 from src.strategy.abstract_strategy import AbstractStrategy
-from src.util.utils import get_path, read_file
+from src.utils.logger import Logger
+from src.utils.simple_io import get_path, read_file
+
+logger = Logger().get_logger()
 
 
 class GridStrategy(AbstractStrategy):
@@ -57,12 +62,11 @@ class GridStrategy(AbstractStrategy):
 
     def generate_grid_levels(self):
         """Generate grid prices using a geometric sequence."""
-        ratio = self.max_price / self.min_price
-        grid_prices = [self.min_price * (ratio ** (i / (self.num_grids - 1))) for i in range(self.num_grids)]
+        ratio = (self.max_price / self.min_price) ** (1 / self.num_grids)
+        grid_levels = [round(self.min_price * (ratio ** i), 4) for i in range(self.num_grids + 1)]
+        grid_levels = [math.floor(price * 100) / 100 for price in grid_levels]
 
-        # Round each price to 4 decimal places
-        grid_prices = [round(price, 4) for price in grid_prices]
-        return grid_prices
+        return grid_levels
 
     def iterate_grids_and_place_limit_order(self, curr_price):
         # TODO: validate security_deposit, curr_eth_position + 0.1 <= max_position before placing orders.
@@ -112,6 +116,27 @@ class GridStrategy(AbstractStrategy):
             self.trade_type = 'sell'
             self.iterate_grids_and_place_limit_order(current_price)
         # TODO: 下单未成交，需识别后再次确认成交条件再下单
+
+    def place_grid_orders(self, current_price):
+        orders = []
+        # Sorting grid levels just to ensure they are in proper order
+        sorted_levels = sorted(self.grid_levels)
+
+        for level in sorted_levels:
+            if level < current_price:  # Place buy order at levels below current price
+                orders.append({
+                    'side': 'buy',
+                    'price': level,
+                    'amount': self.fixed_trade_amount
+                })
+            elif level > current_price:  # Place sell order at levels above current price
+                orders.append({
+                    'side': 'sell',
+                    'price': level,
+                    'amount': self.fixed_trade_amount
+                })
+
+        return orders
 
     def compare_history_prices_and_trade(self, curr_price: float, date_time: str):
         if curr_price <= self.min_price or curr_price >= self.max_price:  # check within boundaries
