@@ -89,7 +89,7 @@ class Exchange(AbstractExchange):
     def fetch_ticker(self, symbol):
         try:
             ticker = self.market.fetch_ticker(symbol)
-            return ticker['last']
+            return ticker
         except ccxt.ExchangeError as e:
             print(f"Exchange error: {str(e)}")
 

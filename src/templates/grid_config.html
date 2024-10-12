@@ -4,36 +4,86 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Set Grid Configuration</title>
+    <style>
+        .disabled-field {
+            background-color: #f0f0f0;
+        }
+        #startButton {
+            font-size: 20px;
+            padding: 10px 20px;
+            margin-top: 20px;
+            background-color: lightgray; /* Default color for Start button */
+            color: black; /* Text color */
+            border: none;
+            cursor: pointer;
+            disabled: true; /* Initially disabled */
+        }
+        #startButton.active {
+            background-color: green; /* Color when trading is active */
+        }
+        #startButton.inactive {
+            background-color: red; /* Color when trading is inactive */
+        }
+    </style>
 </head>
 <body>
 <h1>Set Grid Configuration</h1>
 
-<form id="config-form">
+<form id="config-form" onsubmit="submitConfig(); return false;">
     <label for="symbol">Trading Pair:</label>
-    <input type="text" id="symbol" name="symbol" value="ETH/USDT" required><br><br>
+    <input type="text" id="symbol" name="symbol" value="{{ config.symbol }}" required><br><br>
 
     <label for="min_price">Min Price:</label>
-    <input type="number" id="min_price" name="min_price" value="1800" required><br><br>
+    <input type="number" id="min_price" name="min_price" value="{{ config.min_price }}" required><br><br>
 
     <label for="max_price">Max Price:</label>
-    <input type="number" id="max_price" name="max_price" value="3600" required><br><br>
+    <input type="number" id="max_price" name="max_price" value="{{ config.max_price }}" required><br><br>
 
     <label for="num_grids">Number of Grids:</label>
-    <input type="number" id="num_grids" name="num_grids" value="100" required><br><br>
+    <input type="number" id="num_grids" name="num_grids" value="{{ config.num_grids }}" required><br><br>
 
     <label for="security_deposit">Security Deposit:</label>
-    <input type="number" id="security_deposit" name="security_deposit" value="0" required><br><br>
+    <input type="number" id="security_deposit" name="security_deposit" value="{{ config.security_deposit }}" required><br><br>
 
-    <button type="submit">Submit</button>
+    <label for="fixed_trade_amount">Fixed Trade Amount (ETH):</label>
+    <input type="number" id="fixed_trade_amount" name="fixed_trade_amount" value="{{ config.fixed_trade_amount }}" required><br><br>
+
+    <label for="starting_price">Starting Price (USD):</label>
+    <input type="number" id="starting_price" name="starting_price" value="{{ config.starting_price }}" required><br><br>
+
+    <button type="submit" id="submitButton">Submit</button>
 </form>
 
-<script>
-    document.getElementById('config-form').addEventListener('submit', function(event) {
-        event.preventDefault(); // Prevent the default form submission
+<button id="startButton" onclick="startAutoTrading()" disabled>Start Auto Trading</button>
 
-        const formData = new FormData(event.target);
+<script>
+    let tradingActive = false;  // Track if trading is active
+
+    function submitConfig() {
+        // Disable form fields
+        document.getElementById("symbol").disabled = true;
+        document.getElementById("min_price").disabled = true;
+        document.getElementById("max_price").disabled = true;
+        document.getElementById("num_grids").disabled = true;
+        document.getElementById("security_deposit").disabled = true;
+        document.getElementById("fixed_trade_amount").disabled = true;
+        document.getElementById("starting_price").disabled = true;
+
+        // Disable the submit button
+        document.getElementById("submitButton").disabled = true;
+
+        // Enable and change the style of the "Start" button
+        const startButton = document.getElementById("startButton");
+        startButton.disabled = false;
+        startButton.classList.remove('inactive');
+        startButton.classList.add('active');
+        startButton.style.backgroundColor = "green"; // Change button color to green
+
+        // Collect form data
+        const formData = new FormData(document.getElementById('config-form'));
         const configData = Object.fromEntries(formData.entries());
 
+        // Send the configuration data to the backend
         fetch('/config_grid', {
             method: 'PUT',
             headers: {
@@ -43,10 +93,71 @@
         })
             .then(response => response.json())
             .then(data => {
-                alert(data.message || 'Configuration updated!');
+                alert(data.message || 'Configuration submitted successfully!');
             })
             .catch(error => console.error('Error:', error));
-    });
+    }
+
+    function startAutoTrading() {
+        const startButton = document.getElementById("startButton");
+        console.log('Button clicked. Current state:', tradingActive); // Debugging line
+
+        if (!tradingActive) {
+            // Start the auto trading process
+            fetch('/start_trading', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    console.log('Response status:', response.status); // Debugging line
+                    if (!response.ok) {
+                        throw new Error('Failed to start trading'); // Handle error
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data); // Debugging line
+                    alert(data.message || 'Auto trading started!');
+                    startButton.innerText = "Stop Auto Trading"; // Change button text
+                    startButton.style.backgroundColor = "red"; // Change button color to red
+                    tradingActive = true;  // Set trading active
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error starting auto trading: ' + error.message); // Display error message
+                });
+        } else {
+            // Stop the auto trading process
+            fetch('/stop_trading', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => {
+                    console.log('Response status:', response.status); // Debugging line
+                    if (!response.ok) {
+                        throw new Error('Failed to stop trading'); // Handle error
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Response data:', data); // Debugging line
+                    alert(data.message || 'Auto trading stopped!');
+                    startButton.innerText = "Start Auto Trading"; // Change button text back to Start
+                    startButton.style.backgroundColor = "green"; // Change button color back to green
+                    tradingActive = false;  // Reset trading active
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error stopping auto trading: ' + error.message); // Display error message
+                });
+        }
+    }
+
+
 </script>
 
 <a href="{{ url_for('main.home') }}">Back to Home</a>

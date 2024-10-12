@@ -77,6 +77,25 @@ class TestBinanceGridStrategyWithHistoryData(unittest.TestCase):
         self.history_paired_orders = self.build_real_history_paired_orders()
         self.matched_orders = []
 
+    def test_execute_and_clean_up(self):
+        usdt_balance = self.grid_instance.exchange.fetch_specific_balance('USDT')
+        eth_balance = self.grid_instance.exchange.fetch_specific_balance('ETH')
+        print(usdt_balance)
+        print(eth_balance)
+        curr_price = self.grid_instance.exchange.fetch_ticker(self.grid_instance.tracking_symbol)['last']
+        print(curr_price)
+
+        # self.grid_instance.execute(10)
+
+        print("> Cancelling open orders...")
+        open_orders = self.grid_instance.exchange.fetch_open_orders(self.grid_instance.tracking_symbol)
+        if open_orders:
+            for order in open_orders:
+                print(order)
+            self.grid_instance.cancel_all_open_orders()
+        else:
+            print("No open orders found!")
+
     def test_first(self):
         # test with get_current_grid_price_index()
         pass
@@ -87,14 +106,11 @@ class TestBinanceGridStrategyWithHistoryData(unittest.TestCase):
         break_point_1 = self.grid_instance.get_grid_index_with_current_price(starting_price)
         self.assertEqual(34, break_point_1)  # 0-based
 
-        self.grid_instance.init_grid_orders(break_point_1)  # buy=34, sell=51
-        print(f"After init_place_grid_orders: #buy-order: {len(self.grid_instance.open_buy_orders)}, "
-              f"#sell-order: {len(self.grid_instance.open_sell_orders)}.")
-        self.assertEqual(34, len(self.grid_instance.open_buy_orders))
-        self.assertEqual(51, len(self.grid_instance.open_sell_orders))
-
-        # update parameters
-        self.grid_instance.previous_price_idx = break_point_1
+        self.grid_instance.initialize_grid_orders(break_point_1)  # buy=34, sell=51
+        print(f"After init_place_grid_orders: #buy-order: {self.grid_instance.previous_price_idx}, "
+              f"#sell-order: {self.grid_instance.num_grids - self.grid_instance.previous_price_idx}.")
+        self.assertEqual(34, self.grid_instance.previous_price_idx)
+        self.assertEqual(51, self.grid_instance.num_grids - self.grid_instance.previous_price_idx)
 
     def test_third(self):
         self.test_second()  # dependent on prev

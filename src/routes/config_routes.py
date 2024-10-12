@@ -1,3 +1,5 @@
+import json
+
 from flask import Blueprint, request, jsonify, render_template
 from src.utils.simple_io import get_path, read_file, write_file
 
@@ -57,7 +59,12 @@ class ConfigRoutes:
 
         # If GET request, load the current configuration
         if request.method == 'GET':
-            config = read_file(file_path)
-            if config is None:
-                return "Configuration file not found", 404
-            return render_template('grid_config.html', config=config)
+            try:
+                config = read_file(file_path)
+                return render_template('grid_config.html', config=config)  # Render the HTML template
+            except FileNotFoundError:
+                return jsonify({'error': 'Configuration file not found'}), 404
+            except json.JSONDecodeError:
+                return jsonify({'error': 'Failed to decode JSON'}), 500
+            except Exception as e:
+                return jsonify({'error': str(e)}), 500

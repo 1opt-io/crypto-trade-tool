@@ -40,10 +40,10 @@
 
 <body>
 <p>Click the link below to view Order History:</p>
-<a href="{{ url_for('main.get_order_history') }}">Order History</a>
+<a href="{{ url_for('main.get_current_orders') }}">Active Orders</a>
 
-<p>Click the link below to view Matched Profits:</p>
-<a href="{{ url_for('main.get_matched_profit') }}">View Matched Profit or Loss</a>
+<p>Click the link below to view Matched Orders and Profit:</p>
+<a href="{{ url_for('main.get_matched_orders') }}">Matched Orders and Profit</a>
 
 <p>Click to see Realized Profit_Loss:</p>
 <a href="{{ url_for('main.get_realized_profit_loss') }}">Realized Profit</a> |

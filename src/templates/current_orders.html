@@ -14,20 +14,23 @@
 
         h1 {
             text-align: center;
-            margin-bottom: 20px; /* Added margin for spacing */
+            margin-bottom: 20px;
         }
 
-        table {
-            width: 80%;
-            margin: 0 auto;
-            border-collapse: collapse;
+        .container {
+            display: flex;
+            justify-content: space-between;
             margin-bottom: 20px;
+        }
+
+        .order-table {
+            width: 48%;
             background-color: #fff;
+            border-collapse: collapse;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
 
-        th,
-        td {
+        th, td {
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #ddd;
@@ -42,16 +45,21 @@
             background-color: #f1f1f1;
         }
 
+        h2 {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
         a {
             display: block;
             text-align: center;
-            margin: 20px auto; /* Centering link */
+            margin: 20px auto;
             padding: 10px;
             background-color: #4CAF50;
             color: white;
             text-decoration: none;
             border-radius: 5px;
-            width: 200px; /* Added fixed width for consistency */
+            width: 200px;
         }
 
         a:hover {
@@ -61,36 +69,69 @@
 </head>
 
 <body>
-<h1>Order History</h1>
+<h1>Current Orders</h1>
 
-<table>
-    <thead>
-    <tr>
-        <th>Order ID</th>
-        <th>Symbol</th>
-        <th>Amount</th>
-        <th>Price</th>
-        <th>Type</th>
-        <th>Status</th>
-        <th>Time</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for order in orders %}
-    <tr>
-        <td>{{ order.id }}</td>
-        <td>{{ order.symbol }}</td>
-        <td>{{ order.amount }}</td>
-        <td>{{ order.price }}</td>
-        <td>{{ order.side }}</td>
-        <td>{{ order.status }}</td>
-        <td>{{ order.date }}</td> <!-- Fixed extra '>' -->
-    </tr>
-    {% endfor %}
-    </tbody>
-</table>
+<div class="container">
+    <!-- Buy Orders Table -->
+    <div class="order-table-container">
+        <h2>Buy Orders</h2>
+        <table class="order-table">
+            <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Symbol</th>
+                <th>Amount</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Time</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for order in buy_orders %}
+            <tr>
+                <td>{{ order.id }}</td>
+                <td>{{ order.symbol }}</td>
+                <td>{{ order.amount }}</td>
+                <td>{{ order.price }}</td>
+                <td>{{ order.status }}</td>
+                <td>{{ order.datetime }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Sell Orders Table -->
+    <div class="order-table-container">
+        <h2>Sell Orders</h2>
+        <table class="order-table">
+            <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Symbol</th>
+                <th>Amount</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Time</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for order in sell_orders %}
+            <tr>
+                <td>{{ order.id }}</td>
+                <td>{{ order.symbol }}</td>
+                <td>{{ order.amount }}</td>
+                <td>{{ order.price }}</td>
+                <td>{{ order.status }}</td>
+                <td>{{ order.datetime }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 
 <a href="{{ url_for('main.home') }}">Back to Home</a>
-</body>
 
+</body>
 </html>

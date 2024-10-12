@@ -1,17 +1,44 @@
+import csv
+from datetime import datetime
+
 from flask import Blueprint, render_template, jsonify, current_app
+
+from src.strategy.binance_grid_strategy import BinanceGridStrategy
+from src.utils.simple_io import get_path, read_file
 
 
 class MainRoutes:
-    def __init__(self, grid_strategy):
+    def __init__(self, grid_strategy: BinanceGridStrategy):
         self.grid_strategy = grid_strategy
         self.main_routes = Blueprint('main', __name__)  # Define the Blueprint
 
         # Register routes
         self.main_routes.add_url_rule('/', methods=['GET'], view_func=self.home)
         self.main_routes.add_url_rule('/routes', methods=['GET'], view_func=self.list_routes)
-        self.main_routes.add_url_rule('/order_history', methods=['GET'], view_func=self.get_order_history)
+        self.main_routes.add_url_rule('/current_orders', methods=['GET'], view_func=self.get_current_orders)
         self.main_routes.add_url_rule('/realized_profit_loss', methods=['GET'], view_func=self.get_realized_profit_loss)
-        self.main_routes.add_url_rule('/matched_profit', methods=['GET'], view_func=self.get_matched_profit)
+        self.main_routes.add_url_rule('/matched_profit', methods=['GET'], view_func=self.get_matched_orders)
+        self.main_routes.add_url_rule('/start_trading', methods=['POST'], view_func=self.start_auto_trading)
+        self.main_routes.route('/stop_trading', methods=['POST'], view_func=self.stop_auto_trading)
+
+    def stop_auto_trading(self):
+        try:
+            # self.grid_strategy.stop()  # unable it to test frontend
+            return jsonify({'message': 'Auto-trading stopped successfully'}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    def start_auto_trading(self):
+        try:
+            # Ensure grid_strategy is initialized before starting
+            if self.grid_strategy is None:
+                return jsonify({'error': 'Grid strategy not initialized'}), 400
+
+            # Trigger the auto-trading process
+            # self.grid_strategy.execute()   # unable it to test frontend
+            return jsonify({'message': 'Auto-trading started successfully'}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
 
     @staticmethod
     def home():
@@ -25,52 +52,104 @@ class MainRoutes:
 
         return render_template('list_routes.html', routes=routes)
 
-    def get_order_history(self):
+    def get_current_orders(self):
         """
-        Fetch and display the order history, including open and closed orders, using the grid_strategy.
+        Fetch and display the order history, including open and closed orders, sorted into buy and sell lists.
         """
         try:
-            # Fetch open and closed orders using the exchange instance
-            open_orders = self.grid_strategy.exchange.fetch_open_orders('ETH/USDT')
-            closed_orders = self.grid_strategy.exchange.fetch_closed_orders('ETH/USDT')
+            buy_orders = []
+            sell_orders = []
 
-            # Combine open and closed orders for display
-            order_history_data = []
+            # Separate buy and sell orders, and sort by price
+            for i in range(self.grid_strategy.num_grids):
+                order = self.grid_strategy.orders[i]
 
-            for order in open_orders:
-                order_history_data.append({
-                    'id': order['id'],
-                    'symbol': order['symbol'],
-                    'amount': order['amount'],
-                    'price': order['price'],
-                    'side': order['side'],
-                    'status': order['status'],
-                    'date': order['datetime']
-                })
+                order['datetime'] = self.parse_date_time_to_readable(order['datetime'])
 
-            for order in closed_orders:
-                order_history_data.append({
-                    'id': order['id'],
-                    'symbol': order['symbol'],
-                    'amount': order['amount'],
-                    'price': order['price'],
-                    'status': order['status'],
-                    'date': order['datetime']
-                })
+                if order['side'] == 'buy':
+                    buy_orders.append(order)
+                else:
+                    sell_orders.append(order)
 
-            # Render the template with combined open and closed orders data
-            return render_template('order_history.html', orders=order_history_data)
+            # Sort buy orders by price (decreasing)
+            buy_orders.sort(key=lambda x: x['price'], reverse=True)
+
+            # Sort sell orders by price (increasing)
+            sell_orders.sort(key=lambda x: x['price'])
+
+            # Render the template with buy and sell orders
+            return render_template('current_orders.html', buy_orders=buy_orders, sell_orders=sell_orders)
 
         except Exception as e:
             # Handle and log any exceptions that occur during fetching
-            print(f"Error fetching order history: {e}")
-            return jsonify({'error': 'Failed to fetch order history.'}), 500
+            print(f"Error fetching current orders: {e}")
+            return jsonify({'error': 'Failed to fetch current orders.'}), 500
 
     def get_realized_profit_loss(self):
         # Example function call to get realized profit/loss
-        realized_profit_loss = self.grid_strategy.compute_realized_profit_loss()
-        return render_template('realized_profit_loss.html', profit_loss=realized_profit_loss)
+        # realized_profit_loss = self.grid_strategy.compute_realized_profit_loss()
+        # return render_template('realized_profit_loss.html', profit_loss=realized_profit_loss)
+        pass
 
-    def get_matched_profit(self):
-        matched_profits = self.grid_strategy.calculate_matched_profit()
-        return render_template('matched_profit.html', matched_profits=matched_profits)
+    def get_matched_orders(self):
+        matched_orders = []
+        total_matched_profit = 0  # Initialize total matched profit
+
+        if self.grid_strategy.active:
+            total_matched_profit = self.grid_strategy.total_matched_profit
+            matched_orders = self.grid_strategy.matched_orders
+        else:
+            # Tell user the Auto-Trading Bot is not active now
+            # And give another option: View history matched-orders(import from a file)
+            grid_config_relative_path = '../matched_orders.csv'
+            file_path = get_path(grid_config_relative_path)
+
+            try:
+                with open(file_path, mode='r', newline='') as file:
+                    reader = csv.DictReader(file)  # Read as dictionaries with header
+                    orders = [row for row in reader]  # Convert to a list of dictionaries
+
+                # Calculate profit for each matched pair
+                for i in range(0, len(orders), 2):  # Assuming every two rows are a matched pair
+                    if i + 1 < len(orders):  # Ensure there's a matching sell order
+                        buy_order = orders[i]
+                        sell_order = orders[i + 1]
+
+                        # Calculate profit for this matched pair
+                        buy_price = float(buy_order['price'])
+                        buy_amount = float(buy_order['amount'])
+                        sell_price = float(sell_order['price'])
+                        sell_amount = float(sell_order['amount'])
+
+                        profit = (sell_price * sell_amount) - (buy_price * buy_amount)
+                        rounded_profit = round(profit, 2)
+
+                        total_matched_profit += profit
+
+                        matched_orders.append({
+                            'buy_order_id': buy_order['id'],
+                            'buy_price': buy_order['price'],
+                            'buy_amount': buy_order['amount'],
+                            'buy_datetime': buy_order['datetime'],
+                            'sell_order_id': sell_order['id'],
+                            'sell_price': sell_order['price'],
+                            'sell_amount': sell_order['amount'],
+                            'sell_datetime': sell_order['datetime'],
+                            'matched_profit': rounded_profit
+                        })
+
+            except Exception as e:
+                # Handle any file reading errors
+                print(f"Error reading matched orders from file: {e}")
+                matched_orders = []  # Clear matched orders on error
+
+            total_matched_profit = round(total_matched_profit, 2)
+        return render_template('matched_orders.html', total_matched_profit=total_matched_profit,
+                                   matched_orders=matched_orders)
+
+    @staticmethod
+    def parse_date_time_to_readable(date_time):
+        time = date_time.replace("Z", "+00:00")
+        dt = date_time.fromisoformat(time)
+        readable_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+        return readable_time

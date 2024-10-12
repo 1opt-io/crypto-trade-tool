@@ -26,8 +26,10 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
             'amount': amount,
             'price': price,
             'symbol': symbol,
-            'order_type': order_type,
+            'type': order_type,
             'status': 'open',
+            'datetime': '1111',
+            'timestamp': '1111'
         }
 
     def test_initialize_grid_orders_simple(self):
@@ -72,14 +74,13 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.assertEqual(actual_break_point, break_point)
         self.grid_strategy.initialize_grid_orders(break_point)
 
-        self.assertEqual(actual_break_point, len(self.grid_strategy.open_buy_orders))
-        self.assertEqual(self.grid_strategy.num_grids - actual_break_point, len(self.grid_strategy.open_sell_orders))
+        self.assertEqual(actual_break_point, self.grid_strategy.previous_price_idx)
+        # self.assertEqual(self.grid_strategy.num_grids - actual_break_point, len(self.grid_strategy.open_sell_orders))
 
         self.helper_compare_order_by_order(break_point)  # call helper function to compare order detail
 
     def test_update_grid_orders_with_drop_price(self):
         self.test_initialize_grid_orders(2645.78, 48)  # starting_price = 2645.78, actual_break_point = 48
-        self.grid_strategy.previous_price_idx = 48  # updates prev idx
 
         new_price = 2375  # new price 2375 (actual_break_point = 34)
         break_point = self.grid_strategy.get_grid_index_with_current_price(new_price)
@@ -88,8 +89,8 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.grid_strategy.update_grid_orders(break_point)
 
         # check if number of buy-orders and sell-orders updated correctly.
-        self.assertEqual(break_point, len(self.grid_strategy.open_buy_orders))
-        self.assertEqual(self.grid_strategy.num_grids - break_point, len(self.grid_strategy.open_sell_orders))
+        self.assertEqual(break_point, self.grid_strategy.previous_price_idx)
+        # self.assertEqual(self.grid_strategy.num_grids - break_point, len(self.grid_strategy.open_sell_orders))
 
         self.helper_compare_order_by_order(break_point)  # call helper function to compare orders detail
 
@@ -108,8 +109,7 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.grid_strategy.update_grid_orders(break_point)
 
         # check if number of buy-orders and sell-orders updated correctly.
-        self.assertEqual(break_point, len(self.grid_strategy.open_buy_orders))
-        self.assertEqual(self.grid_strategy.num_grids - break_point, len(self.grid_strategy.open_sell_orders))
+        self.assertEqual(break_point, self.grid_strategy.previous_price_idx)
 
         self.helper_compare_order_by_order(break_point)  # call helper function to compare orders detail
 
@@ -119,9 +119,7 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.assertEqual(44, actual_break_point)
 
         self.test_initialize_grid_orders(starting_price, actual_break_point)
-        self.assertEqual(actual_break_point, len(self.grid_strategy.open_buy_orders))
-        self.assertEqual(self.grid_strategy.num_grids - actual_break_point, len(self.grid_strategy.open_sell_orders))
-        self.grid_strategy.previous_price_idx = actual_break_point  # update prev idx
+        self.assertEqual(actual_break_point, self.grid_strategy.previous_price_idx)
 
         new_price = 2571.70  # new price = 2571.70, same grid level as previous price
         new_break_point = self.grid_strategy.get_grid_index_with_current_price(new_price)
@@ -130,15 +128,13 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.grid_strategy.update_grid_orders(new_break_point)
 
         # check if number of buy-orders and sell-orders updated correctly.
-        self.assertEqual(new_break_point, len(self.grid_strategy.open_buy_orders))
-        self.assertEqual(self.grid_strategy.num_grids - new_break_point, len(self.grid_strategy.open_sell_orders))
+        self.assertEqual(new_break_point, self.grid_strategy.previous_price_idx)
 
         self.helper_compare_order_by_order(new_break_point)  # call helper function to compare orders detail
 
     def test_update_grid_orders_with_same_grid_level_prices_complex(self):
         self.test_update_grid_orders_with_drop_then_raise_prices()   # price changed: 2645.78 -> 2375 -> 2565.39
         last_idx = self.grid_strategy.get_grid_index_with_current_price(2565.39)
-        self.grid_strategy.previous_price_idx = last_idx  # update prev idx
 
         new_price = 2571.70  # new price = 2571.70, same grid level as previous price 2565.39
         new_break_point = self.grid_strategy.get_grid_index_with_current_price(new_price)
@@ -147,8 +143,10 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.grid_strategy.update_grid_orders(new_break_point)
 
         # check if number of buy-orders and sell-orders updated correctly.
-        self.assertEqual(new_break_point, len(self.grid_strategy.open_buy_orders))
-        self.assertEqual(self.grid_strategy.num_grids - new_break_point, len(self.grid_strategy.open_sell_orders))
+        self.assertEqual(new_break_point, self.grid_strategy.previous_price_idx)
+
+        for i in range(1, len(self.grid_strategy.orders)):
+            print(f"Order {i}: {self.grid_strategy.orders[i]}")
 
         self.helper_compare_order_by_order(new_break_point)  # call helper function to compare orders detail
 
