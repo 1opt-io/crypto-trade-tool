@@ -16,4 +16,6 @@ venv/
 /src/config/user_key_secret.json
 /src/config/testnet_future.json
 
-
+# Ignore app.log files
+src/app.log
+tests/app.log

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matched Orders</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 80%;
+            margin: 0 auto;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .total-profit {
+            text-align: center;
+            font-size: 1.5em;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+
+<body>
+<h1>Matched Orders</h1>
+
+<div class="total-profit">
+    <strong>Total Matched Profit: </strong> ${{ total_matched_profit }}
+</div>
+
+<table>
+    <thead>
+    <tr>
+        <th>Buy Order ID</th>
+        <th>Buy Amount</th>
+        <th>Buy Price</th>
+        <th>Sell Order ID</th>
+        <th>Sell Amount</th>
+        <th>Sell Price</th>
+        <th>Profit</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for order_pair in matched_orders %}
+    <tr>
+        <td>{{ order_pair[0]['id'] }}</td>
+        <td>{{ order_pair[0]['amount'] }}</td>
+        <td>{{ order_pair[0]['price'] }}</td>
+        <td>{{ order_pair[1]['id'] }}</td>
+        <td>{{ order_pair[1]['amount'] }}</td>
+        <td>{{ order_pair[1]['price'] }}</td>
+        <td>${{ order_pair[1]['price'] - order_pair[0]['price'] }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<a href="{{ url_for('main.home') }}">Back to Home</a>
+</body>
+
+</html>
