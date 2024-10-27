@@ -1,69 +1,16 @@
 import csv
-import os
 import unittest
-
-import pandas as pd
 
 from src.service.exchange import Exchange
 from src.strategy.binance_grid_strategy import BinanceGridStrategy
 
 
-def read_prices(binance_grid: BinanceGridStrategy):
-    price_file_path = '/Users/yang/Documents/data_futures_sorted_filtered.csv'
-    # Read the CSV file into a DataFrame
-    df = pd.read_csv(price_file_path)
-
-    # Display the DataFrame to see the data
-    print(df.head())  # Display the first few rows of the DataFrame
-
-    # Access specific columns
-    for index, row in df.iterrows():
-        timestamp = row['timestamp']
-        price_str = row['close']  # Access the 'close' price
-
-        # Attempt to convert the price to float
-        try:
-            float_price = float(price_str)  # Direct conversion
-        except ValueError as e:
-            print(f"Could not convert price '{price_str}' to float. Error: {e}")
-            continue
-
-        try:
-            binance_grid.execute_with_history_prices(float_price, timestamp)
-        except Exception as e:
-            print(f"Error in compare_history_prices_and_trade: {e}")
-
-    # export buy-orders, sell-orders, and matched-orders
-    buy_orders_file_path = os.path.expanduser('~/Documents/buy_orders.csv')
-    sell_orders_file_path = os.path.expanduser('~/Documents/sell_orders.csv')
-    export_data(buy_orders_file_path, binance_grid.open_buy_orders)
-    export_data(sell_orders_file_path, binance_grid.open_sell_orders)
-
-    matched_orders_file_path = os.path.expanduser('~/Documents/matched_orders.csv')
-    export_data(matched_orders_file_path, binance_grid.matched_orders)
-    print("\n\n---- read_prices() Completed----")
-
-
-def export_data(file_path, orders):
-    # Writing to a CSV file
-    with open(file_path, 'w', newline='') as csv_file:
-        fieldnames = ['side', 'amount', 'price', 'date']
-        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-
-        # Writing headers
-        writer.writeheader()
-
-        # Write each dictionary in sell_orders to the CSV file
-        for order in orders:
-            writer.writerow(order)
-
-
-def create_order_info(side, price, amount, time_stamp):
+def create_order_info(side, price, amount, datetime):
     order_info = {
         'side': side,
         'price': price,
         'amount': amount,
-        'time_stamp': time_stamp
+        'datetime': datetime
     }
     return order_info
 
@@ -77,87 +24,19 @@ class TestBinanceGridStrategyWithHistoryData(unittest.TestCase):
         self.history_paired_orders = self.build_real_history_paired_orders()
         self.matched_orders = []
 
-    def test_execute_and_clean_up(self):
-        usdt_balance = self.grid_instance.exchange.fetch_specific_balance('USDT')
-        eth_balance = self.grid_instance.exchange.fetch_specific_balance('ETH')
-        print(usdt_balance)
-        print(eth_balance)
-        curr_price = self.grid_instance.exchange.fetch_ticker(self.grid_instance.tracking_symbol)['last']
-        print(curr_price)
 
-        # self.grid_instance.execute(10)
-
-        print("> Cancelling open orders...")
-        open_orders = self.grid_instance.exchange.fetch_open_orders(self.grid_instance.tracking_symbol)
-        if open_orders:
-            for order in open_orders:
-                print(order)
-            self.grid_instance.cancel_all_open_orders()
-        else:
-            print("No open orders found!")
-
-    def test_first(self):
-        # test with get_current_grid_price_index()
-        pass
-
-    def test_second(self):
-        # test with init_place_grid_orders()
-        starting_price = 2375
-        break_point_1 = self.grid_instance.get_grid_index_with_current_price(starting_price)
-        self.assertEqual(34, break_point_1)  # 0-based
-
-        self.grid_instance.initialize_grid_orders(break_point_1)  # buy=34, sell=51
-        print(f"After init_place_grid_orders: #buy-order: {self.grid_instance.previous_price_idx}, "
-              f"#sell-order: {self.grid_instance.num_grids - self.grid_instance.previous_price_idx}.")
-        self.assertEqual(34, self.grid_instance.previous_price_idx)
-        self.assertEqual(51, self.grid_instance.num_grids - self.grid_instance.previous_price_idx)
-
-    def test_third(self):
-        self.test_second()  # dependent on prev
-        # test with adjust_grid_orders()
-
-        new_price = 2571.70
-        break_point_2 = self.grid_instance.get_grid_index_with_current_price(new_price)
-        self.assertEqual(44, break_point_2)  # 0-based, # buy=44, sell=41
-
-        self.grid_instance.adjust_grid_orders(break_point_2)
-
-        print(f"After adjustment (1): #buy-order: {len(self.grid_instance.open_buy_orders)}, "
-              f"#sell-order: {len(self.grid_instance.open_sell_orders)}.")
-
-        self.assertEqual(44, len(self.grid_instance.open_buy_orders))
-        self.assertEqual(41, len(self.grid_instance.open_sell_orders))
-
-        # update parameters
-        self.grid_instance.previous_price_idx = break_point_2
-
-    def test_fourth(self):
-        self.test_third()  # dependent on prev
-        # test with adjust_grid_orders() again
-
-        new_price = 2375
-        break_point_3 = self.grid_instance.get_grid_index_with_current_price(new_price)
-        self.assertEqual(34, break_point_3)  # 0-based,  # buy=34, sell=51
-
-        self.grid_instance.adjust_grid_orders(break_point_3)
-
-        print(f"After adjustment (2): #buy-order: {len(self.grid_instance.open_buy_orders)}, "
-              f"#sell-order: {len(self.grid_instance.open_sell_orders)}.")
-
-        self.assertEqual(34, len(self.grid_instance.open_buy_orders))
-        self.assertEqual(51, len(self.grid_instance.open_sell_orders))
-
-    def test_fifth(self):
+    def test_matche_order_and_profit(self):
         # test with compute_matched_profit()
         # Separate buy and sell orders
         print(f"\nTotal un-matched order: {len(self.history_paired_orders)}")
         print(f"> Before matching: Un-matched buy orders: {len(self.grid_instance.unmatched_closed_buy_order)}, "
               f"Un-matched sell orders: {len(self.grid_instance.unmatched_closed_sell_order)}")
 
-        self.history_paired_orders.sort(key=lambda x: x['time_stamp'])
+        # sorts history orders by time
+        self.history_paired_orders.sort(key=lambda x: x['datetime'])
 
+        # call match_orders_and_compute_profit() to execute matching
         count = 0
-
         for order in self.history_paired_orders:
             found_match = self.grid_instance.match_orders_and_compute_profit(order)
             if found_match:
@@ -168,9 +47,7 @@ class TestBinanceGridStrategyWithHistoryData(unittest.TestCase):
                 else:
                     self.grid_instance.unmatched_closed_sell_order.append(order)
 
-        print(f"> After matching: Un-matched buy orders: {len(self.grid_instance.unmatched_closed_buy_order)},"
-              f"Un-matched sell orders: {len(self.grid_instance.unmatched_closed_sell_order)}")
-
+        # print out matched/paired orders
         count = 0
         for order in self.grid_instance.matched_orders:
             print(order)
@@ -181,9 +58,16 @@ class TestBinanceGridStrategyWithHistoryData(unittest.TestCase):
         self.assertEqual(0, len(self.grid_instance.unmatched_closed_buy_order))
         self.assertEqual(len(self.history_paired_orders), len(self.grid_instance.matched_orders))
 
+        # compare actual matched/paired orders with history matched orders
         actual_paired_orders = self.build_real_history_paired_orders()
         for i in range(len(self.grid_instance.matched_orders)):
             self.assertEqual(actual_paired_orders[i], self.grid_instance.matched_orders[i])
+
+        print(f"\n\n> After matching: Un-matched buy orders: {len(self.grid_instance.unmatched_closed_buy_order)},"
+              f"Un-matched sell orders: {len(self.grid_instance.unmatched_closed_sell_order)}")
+
+        print(f"> # of matched orders: {len(self.grid_instance.matched_orders)},"
+              f"total matched profit: {self.grid_instance.total_matched_profit}")
 
     @staticmethod
     def build_real_history_paired_orders():
@@ -327,5 +211,4 @@ class TestBinanceGridStrategyWithHistoryData(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # read_prices()
     unittest.main()

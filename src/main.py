@@ -1,10 +1,12 @@
 from src.routes.config_routes import ConfigRoutes
 from src.routes.main_routes import MainRoutes
 from flask import Flask
-import threading
 
 from src.service.exchange import Exchange
 from src.strategy.binance_grid_strategy import BinanceGridStrategy
+from src.utils.logger import Logger
+
+logger = Logger().get_logger()
 
 
 def create_app():
@@ -15,11 +17,11 @@ def create_app():
     # default__grid_strategy = GridStrategy(exchange)  # use default grid strategy
     binance_grid = BinanceGridStrategy(exchange)
 
-    print("Creating instance of MainRoutes...")  # Create an instance of MainRoutes
+    logger.info("Creating instance of MainRoutes...")  # Create an instance of MainRoutes
     main_routes_instance = MainRoutes(binance_grid)
     config_routes = ConfigRoutes()
 
-    print("Registering the blueprints...")  # Register blueprints
+    logger.info("Registering the blueprints...")  # Register blueprints
     app.register_blueprint(main_routes_instance.main_routes)
     app.register_blueprint(config_routes.config_routes)
 
@@ -37,7 +39,6 @@ def run_grid_strategy(binance_grid):
 
 def main():
     try:
-        print("Initializing project...")
         # app, binance_grid = create_app()  # Get both app and binance_grid
         app = create_app()
 
@@ -49,14 +50,14 @@ def main():
         app.run(debug=True)
 
     except KeyboardInterrupt:
-        print("\n\nTrading process interrupted by user. Exiting...")
+        logger.info("\n\nProgram interrupted by user. Exiting...")
 
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.info(f"An unexpected error occurred(main): {e}")
 
     finally:
         # Ensure any necessary cleanup is done here
-        print("Exiting program.")
+        logger.info("Exiting program.")
 
 
 if __name__ == "__main__":

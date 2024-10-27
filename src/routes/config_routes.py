@@ -49,15 +49,29 @@ class ConfigRoutes:
         if request.method == 'PUT':
             new_config = request.json  # Get new config data from the request
 
+            # Debugging: log headers and body
+            # print("Request headers:", request.headers)
+            # print("Request data:", request.data)
+
             # Check if required parameters are present
             if not new_config:
+                print("new_config is None")  # Debugging: log the incoming data
                 return jsonify({'error': 'No data provided'}), 400
 
+            print("New config received:", new_config)  # Debugging: log the incoming data
+
             # Save the new configuration
+            new_config['min_price'] = float(new_config['min_price'])
+            new_config['max_price'] = float(new_config['max_price'])
+            new_config['num_grids'] = int(new_config['num_grids'])
+            new_config['max_position'] = float(new_config['max_position'])
+            new_config['fixed_trade_amount'] = float(new_config['fixed_trade_amount'])
+            new_config['starting_price'] = float(new_config['starting_price'])
+            new_config['security_deposit'] = float(new_config['security_deposit'])
+
             write_file(file_path, new_config)
             return jsonify({'message': 'Grid configuration updated successfully', 'config': new_config}), 200
 
-        # If GET request, load the current configuration
         if request.method == 'GET':
             try:
                 config = read_file(file_path)

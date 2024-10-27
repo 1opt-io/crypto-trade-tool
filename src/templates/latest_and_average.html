@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ETH/USDT Latest and Average Price</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .price-container {
+            margin: 20px auto;
+            text-align: center;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 50%;
+        }
+
+        .price-container p {
+            font-size: 1.2em;
+            color: #555;
+            margin: 10px 0;
+        }
+
+        .highlight {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-size: 1.1em;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+<h1>ETH/USDT Latest and Average Price</h1>
+
+<div class="price-container">
+    <p><strong>Latest Price:</strong> <span class="highlight">{{ values[0] }}</span></p>
+    <p><strong>Average Closing Price (1h):</strong> <span class="highlight">{{ values[1] }}</span></p>
+</div>
+
+<!-- Error message section -->
+{% if error %}
+<div class="error">
+    <p>{{ error }}</p>
+</div>
+{% endif %}
+
+</body>
+</html>

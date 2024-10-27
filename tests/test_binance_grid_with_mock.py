@@ -18,7 +18,7 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.grid_strategy.exchange.place_order.side_effect = self.place_order_side_effect
 
     # Use side_effect to generate dynamic prices based on the grid levels
-    def place_order_side_effect(self, symbol, side, amount, price, order_type):
+    def place_order_side_effect(self, symbol, order_type, side, amount, price):
         self.place_order_call_count += 1
         return {
             'id': f'test_order_{self.place_order_call_count}',
@@ -27,7 +27,6 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
             'price': price,
             'symbol': symbol,
             'type': order_type,
-            'status': 'open',
             'datetime': '1111',
             'timestamp': '1111'
         }
@@ -45,25 +44,28 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
 
         # Assertions to check if place_order is called correctly
         # For buy orders (below break_point)
-        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'buy', 0.1, 1800, 'limit')
-        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'buy', 0.1, 2000, 'limit')
+        amount = self.grid_strategy.fixed_trade_amount
+        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'limit', 'buy', amount, 1800)
+        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'limit', 'buy', amount, 2000)
 
         # For sell-orders (above break_point)
-        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'sell', 0.1, 2400, 'limit')
-        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'sell', 0.1, 2600, 'limit')
-        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'sell', 0.1, 2800, 'limit')
+        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'limit', 'sell', amount, 2400)
+        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'limit', 'sell', amount, 2600)
+        self.grid_strategy.exchange.place_order.assert_any_call('ETH/USDT', 'limit', 'sell', amount, 2800)
 
         # Check the number of times place_order was called
-        self.assertEqual(self.grid_strategy.exchange.place_order.call_count, 5)  # 2 buys, 3 sells
+        self.assertEqual(5, self.grid_strategy.exchange.place_order.call_count)  # 2 buys, 3 sells
+
+        self.helper_compare_order_by_order(self.grid_strategy.previous_price_idx)
 
     def helper_compare_order_by_order(self, break_point):
         for i in range(break_point):
             self.grid_strategy.exchange.place_order.assert_any_call(
-                'ETH/USDT', 'buy', self.grid_strategy.fixed_trade_amount, self.grid_strategy.grid_levels[i], 'limit')
+                'ETH/USDT', 'limit', 'buy', self.grid_strategy.fixed_trade_amount, self.grid_strategy.grid_levels[i])
 
         for i in range(break_point + 1, len(self.grid_strategy.grid_levels)):
             self.grid_strategy.exchange.place_order.assert_any_call(
-                'ETH/USDT', 'sell', self.grid_strategy.fixed_trade_amount, self.grid_strategy.grid_levels[i], 'limit')
+                'ETH/USDT', 'limit', 'sell', self.grid_strategy.fixed_trade_amount, self.grid_strategy.grid_levels[i])
 
     def test_initialize_grid_orders(self, starting_price=None, actual_break_point=None):
         starting_price = starting_price if starting_price else self.grid_strategy.starting_price
@@ -77,29 +79,35 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.assertEqual(actual_break_point, self.grid_strategy.previous_price_idx)
         # self.assertEqual(self.grid_strategy.num_grids - actual_break_point, len(self.grid_strategy.open_sell_orders))
 
+        self.assertEqual(85, self.grid_strategy.exchange.place_order.call_count)
         self.helper_compare_order_by_order(break_point)  # call helper function to compare order detail
 
     def test_update_grid_orders_with_drop_price(self):
-        self.test_initialize_grid_orders(2645.78, 48)  # starting_price = 2645.78, actual_break_point = 48
+        break_point = self.grid_strategy.get_grid_index_with_current_price(2645.78)
+        self.test_initialize_grid_orders(2645.78, break_point)  # starting_price = 2645.78, break_point = 48
+        self.assertEqual(85, self.grid_strategy.exchange.place_order.call_count)
 
         new_price = 2375  # new price 2375 (actual_break_point = 34)
-        break_point = self.grid_strategy.get_grid_index_with_current_price(new_price)
-        self.assertEqual(34, break_point)
+        new_break_point = self.grid_strategy.get_grid_index_with_current_price(new_price)
+        self.assertEqual(34, new_break_point)
 
-        self.grid_strategy.update_grid_orders(break_point)
+        self.grid_strategy.update_grid_orders(new_break_point)
+
+        # price drops -> need to update x buy-orders to sell-orders
+        # x = (break_point - new_break_point)
+        total_call_count = 85 + (break_point - new_break_point)
+        self.assertEqual(total_call_count, self.grid_strategy.exchange.place_order.call_count)
 
         # check if number of buy-orders and sell-orders updated correctly.
-        self.assertEqual(break_point, self.grid_strategy.previous_price_idx)
-        # self.assertEqual(self.grid_strategy.num_grids - break_point, len(self.grid_strategy.open_sell_orders))
-
+        self.assertEqual(new_break_point, self.grid_strategy.previous_price_idx)
         self.helper_compare_order_by_order(break_point)  # call helper function to compare orders detail
 
     def test_update_grid_orders_with_drop_then_raise_prices(self):
         # test scenario: prices drops then raises.
-        # starting_price = 2645.78, actual_break_point = 48
-        # new price = 2375, actual_break_point = 34,
+        # starting_price = 2645.78, break_point = 48
+        # dropped price = 2375, break_point = 34
+        # then price raises to 2565.39, final_break_point = 44
         self.test_update_grid_orders_with_drop_price()
-        self.grid_strategy.previous_price_idx = 34  # updates prev idx
 
         new_price = 2565.39  # grid_levels[43] = 2555.98, grid_levels[44] = 2576.91
         actual_break_point = 44
@@ -107,6 +115,9 @@ class TestBinanceGridStrategyWithMock(unittest.TestCase):
         self.assertEqual(actual_break_point, break_point)
 
         self.grid_strategy.update_grid_orders(break_point)
+
+        total_call_count = 85 + (48 - 34) + (44 - 34)
+        self.assertEqual(total_call_count, self.grid_strategy.exchange.place_order.call_count)
 
         # check if number of buy-orders and sell-orders updated correctly.
         self.assertEqual(break_point, self.grid_strategy.previous_price_idx)

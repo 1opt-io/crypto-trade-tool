@@ -9,10 +9,6 @@ class AbstractExchange(ABC):
         pass
 
     @abstractmethod
-    def fetch_specific_balance(self, asset_symbol: str):
-        pass
-
-    @abstractmethod
     def fetch_ticker(self, symbol):
         pass
 
@@ -37,5 +33,5 @@ class AbstractExchange(ABC):
         pass
 
     @abstractmethod
-    def fetch_recent_ohlcv(self, symbol, timeframe='1h', since=None, limit=100):
+    def fetch_ohlcv(self, symbol, timeframe='1h', since=None, limit=100):
         pass
